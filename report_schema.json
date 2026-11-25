@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage 5 OSINT report",
+  "description": "Output of MiniSpiderFoot.run_full_recon(). Unknown extra keys are allowed so the report can grow without breaking consumers; required keys and enums are the contract.",
+  "type": "object",
+  "required": [
+    "engine_version",
+    "report_schema_version",
+    "evidence_profile",
+    "seed_inputs",
+    "search_slices",
+    "osint_findings",
+    "analysis_caveats",
+    "engine_diagnostics"
+  ],
+  "properties": {
+    "engine_version": { "type": "string" },
+    "report_schema_version": { "const": "1.0" },
+
+    "evidence_profile": {
+      "type": "object",
+      "required": ["filename", "sha256", "md5", "phash", "dhash", "resolution", "scan_timestamp_utc"],
+      "properties": {
+        "filename": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "md5": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "phash": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "dhash": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "resolution": { "type": "string", "pattern": "^[0-9]+x[0-9]+$" },
+        "scan_timestamp_utc": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "seed_inputs": {
+      "type": "object",
+      "required": ["provided_url", "pivot_username", "pivot_username_origin", "auto_discovered_handles"],
+      "properties": {
+        "provided_url": { "type": ["string", "null"] },
+        "pivot_username": { "type": ["string", "null"] },
+        "pivot_username_origin": { "enum": ["analyst_supplied", "auto_first_visual_hit", null] },
+        "auto_discovered_handles": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "search_slices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "method", "box", "phash", "dhash"],
+        "properties": {
+          "name": { "enum": ["FULL_IMAGE", "SUBJECT_FOCUS_CROP", "CONTEXT_BACKGROUND_CROP"] },
+          "method": { "enum": ["whole_image", "face_detection", "fixed_heuristic"] },
+          "box": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 4, "maxItems": 4 }
+            ]
+          },
+          "phash": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+          "dhash": { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+        }
+      }
+    },
+
+    "osint_findings": {
+      "type": "object",
+      "required": [
+        "linked_social_accounts",
+        "other_web_sources",
+        "page_metadata_intel",
+        "infrastructure_intel",
+        "ranked_leads",
+        "lead_summary"
+      ],
+      "properties": {
+        "linked_social_accounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["platform", "url", "matched_handle", "handle_in_result", "query_used"],
+            "properties": {
+              "platform": { "type": "string" },
+              "url": { "type": "string" },
+              "matched_handle": { "type": "string" },
+              "handle_in_result": { "type": "boolean" },
+              "query_used": { "type": "string" }
+            }
+          }
+        },
+        "other_web_sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["platform", "url", "search_slice", "match_type"],
+            "properties": {
+              "platform": { "type": "string" },
+              "url": { "type": "string", "pattern": "^https?://" },
+              "search_slice": { "type": "string" },
+              "match_type": { "type": "string" },
+              "thumbnail_url": { "type": ["string", "null"] },
+              "thumbnail_comparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/image_comparison" }] }
+            }
+          }
+        },
+        "page_metadata_intel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_url", "platform", "outbound_links"],
+            "properties": {
+              "source_url": { "type": "string" },
+              "platform": { "type": "string" },
+              "detected_timestamp_utc": { "type": ["string", "null"] },
+              "timestamp_kind": { "enum": ["published", "updated", "time_tag_unverified", null] },
+              "outbound_links": { "type": "array", "items": { "type": "string" } },
+              "image_comparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/image_comparison" }] }
+            }
+          }
+        },
+        "infrastructure_intel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["domain", "registrable_domain", "server_ip", "registrar", "creation_date"],
+            "properties": {
+              "domain": { "type": "string" },
+              "registrable_domain": { "type": "string" },
+              "server_ip": { "type": "string" },
+              "registrar": { "type": "string" },
+              "creation_date": { "type": "string" }
+            }
+          }
+        },
+        "ranked_leads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_url", "platform", "analyzed", "image_comparison", "compared_via", "archive"],
+            "properties": {
+              "source_url": { "type": "string" },
+              "platform": { "type": "string" },
+              "analyzed": { "type": "boolean" },
+              "image_comparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/image_comparison" }] },
+              "compared_via": { "enum": ["page_image", "result_thumbnail", null] },
+              "published_timestamp_utc": { "type": ["string", "null"] },
+              "timestamp_kind": { "enum": ["published", "updated", "time_tag_unverified", null] },
+              "archive": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "required": ["found"],
+                    "properties": {
+                      "found": { "type": "boolean" },
+                      "first_capture_utc": { "type": ["string", "null"] },
+                      "snapshot_url": { "type": ["string", "null"] }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "lead_summary": {
+          "type": "object",
+          "required": [
+            "leads_total",
+            "leads_with_image_comparison",
+            "best_visual_lead",
+            "earliest_published_lead",
+            "earliest_archived_lead"
+          ],
+          "properties": {
+            "leads_total": { "type": "integer", "minimum": 0 },
+            "leads_with_image_comparison": { "type": "integer", "minimum": 0 },
+            "best_visual_lead": { "type": ["string", "null"] },
+            "earliest_published_lead": { "type": ["string", "null"] },
+            "earliest_archived_lead": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "analysis_caveats": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+
+    "engine_diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["level", "phase", "message"],
+        "properties": {
+          "level": { "enum": ["info", "warning", "error"] },
+          "phase": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "image_comparison": {
+      "type": "object",
+      "required": [
+        "best_matching_slice",
+        "phash_distance",
+        "dhash_distance",
+        "mirrored",
+        "strength",
+        "matched_by",
+        "feature_inliers"
+      ],
+      "properties": {
+        "best_matching_slice": { "type": "string" },
+        "phash_distance": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "dhash_distance": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "mirrored": { "type": "boolean" },
+        "strength": { "enum": ["NEAR_DUPLICATE", "SIMILAR", "WEAK"] },
+        "matched_by": { "enum": ["hash", "features", "both"] },
+        "feature_inliers": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}
